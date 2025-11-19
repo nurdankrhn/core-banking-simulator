@@ -1,4 +1,4 @@
-package CoreBankingSimulator.contorller;
+package CoreBankingSimulator.controller;
 
 import CoreBankingSimulator.model.Customer;
 import CoreBankingSimulator.repository.CustomerRepository;
