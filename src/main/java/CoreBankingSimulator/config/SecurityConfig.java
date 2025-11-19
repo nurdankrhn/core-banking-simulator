@@ -32,6 +32,8 @@ public class SecurityConfig {
                 .csrf().disable()
                 .authorizeHttpRequests()
                 .requestMatchers("/api/auth/**", "/api/customers/register").permitAll() // login/register
+                .requestMatchers("/api/customers/me").hasAnyAuthority("USER", "ADMIN")
+                .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
                 .anyRequest().authenticated()               // all others require JWT
                 .and()
                 .sessionManagement()
