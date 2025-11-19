@@ -3,6 +3,7 @@ package CoreBankingSimulator.controller;
 import CoreBankingSimulator.model.Customer;
 import CoreBankingSimulator.repository.CustomerRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
@@ -12,9 +13,12 @@ import java.util.Set;
 public class CustomerController {
 
     private final CustomerRepository customerRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public CustomerController(CustomerRepository customerRepository) {
+    public CustomerController(CustomerRepository customerRepository, PasswordEncoder passwordEncoder)
+    {
         this.customerRepository = customerRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // Register new customer
@@ -24,6 +28,7 @@ public class CustomerController {
         if(customer.getRoles() == null) {
             customer.setRoles(Set.of("USER"));
         }
+        customer.setPassword(passwordEncoder.encode(customer.getPassword()));
         Customer savedCustomer = customerRepository.save(customer);
         return ResponseEntity.ok(savedCustomer);
     }
