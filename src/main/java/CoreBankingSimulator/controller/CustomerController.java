@@ -26,7 +26,7 @@ public class CustomerController {
     // Register new customer
     @PostMapping("/register")
     public ResponseEntity<Customer> registerCustomer(@RequestBody Customer customer) {
-        // Şifre hashing ve validation daha sonra eklenir
+        // password is added after hashing ve validation
         if(customer.getRoles() == null) {
             customer.setRoles(Set.of("USER"));
         }

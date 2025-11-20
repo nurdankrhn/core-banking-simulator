@@ -35,6 +35,11 @@ public class CustomerDetails implements UserDetails {
         return customer.getEmail(); // or username field
     }
 
+
+    public Set<String> getRoles() {
+        return customer.getRoles(); // or username field
+    }
+
     @Override
     public boolean isAccountNonExpired() { return true; }
 
