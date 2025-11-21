@@ -58,8 +58,7 @@ public class JwtUtil {
 
     public boolean validateToken(String token, CustomerDetails userDetails) {
         String username = extractUsername(token);
-        List<String> roles = extractRoles(token);
-        return username.equals(userDetails.getUsername()) && roles.equals(userDetails.getRoles());
+        return username.equals(userDetails.getUsername());
     }
 }
 

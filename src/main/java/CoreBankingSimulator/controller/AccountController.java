@@ -72,8 +72,6 @@ public class AccountController {
         // only admin
         String email = auth.getName();
         Customer c = customerRepository.findByEmail(email).orElseThrow();
-        System.out.println("hereeeeeeeeeeeeeeeeeeeeeeeee " );
-        System.out.println("roles: " + c.getRoles());
         if (!c.getRoles().contains("ADMIN")) {
             return ResponseEntity.status(403).build();
         }

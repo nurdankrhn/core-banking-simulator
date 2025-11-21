@@ -54,7 +54,7 @@ public class CustomerController {
         return ResponseEntity.ok(customer);
     }
 
-    @GetMapping("admin/dashboard")
+    @GetMapping("/admin/dashboard")
     public String dashboard() {
         return "ADMIN AREA — ACCESS GRANTED";
     }

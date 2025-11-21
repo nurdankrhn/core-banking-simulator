@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests()
                 .requestMatchers("/api/auth/**", "/api/customers/register").permitAll() // login/register
                 .requestMatchers("/api/customers/me").hasAnyAuthority("USER", "ADMIN")
-                .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                .requestMatchers("/api/customers/admin/**").hasAuthority("ADMIN")
                 .anyRequest().authenticated()               // all others require JWT
                 .and()
                 .sessionManagement()
