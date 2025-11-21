@@ -1,4 +1,155 @@
 package CoreBankingSimulator.services;
 
+import CoreBankingSimulator.model.Account;
+import CoreBankingSimulator.model.Transaction;
+import CoreBankingSimulator.repository.AccountRepository;
+import CoreBankingSimulator.repository.TransactionRepository;
+import CoreBankingSimulator.services.kafka.TransactionEventPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.kafka.core.KafkaTemplate;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
 public class TransactionService {
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
+    private TransactionEventPublisher eventPublisher;
+
+    // ===================== Deposit =====================
+    @Transactional
+    public Transaction deposit(Long accountId, BigDecimal amount, String description, Long userId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        // ===================== Update balance =====================
+        account.setBalance(account.getBalance().add(amount));
+        accountRepository.save(account);
+
+        // ===================== Create transaction =====================
+        Transaction tx = new Transaction();
+        tx.setAccount(account);
+        tx.setAmount(amount);
+        tx.setType("DEPOSIT");
+        tx.setDirection("IN");
+        tx.setDescription(description);
+        tx.setStatus("POSTED"); // immediately posted for deposits
+        tx.setCreatedBy(userId);
+        tx.setCreatedAt(OffsetDateTime.now());
+        tx.setUpdatedAt(OffsetDateTime.now());
+
+        // ===================== Publish events =====================
+        // First, transaction validated
+        eventPublisher.publishValidated(tx);
+
+        // Save transaction to DB
+        tx = transactionRepository.save(tx);
+
+        // Then, transaction posted
+        eventPublisher.publishPosted(tx);
+
+        return tx;
+    }
+
+
+    // ===================== Withdraw =====================
+    @Transactional
+    public Transaction withdraw(Long accountId, BigDecimal amount, String description, Long userId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        if (account.getBalance().compareTo(amount) < 0) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        // ===================== Update balance =====================
+        account.setBalance(account.getBalance().subtract(amount));
+        accountRepository.save(account);
+
+        // ===================== Create transaction =====================
+        Transaction tx = new Transaction();
+        tx.setAccount(account);
+        tx.setAmount(amount);
+        tx.setType("WITHDRAW");
+        tx.setDirection("OUT");
+        tx.setDescription(description);
+        tx.setStatus("POSTED"); // immediately posted for withdraws
+        tx.setCreatedBy(userId);
+        tx.setCreatedAt(OffsetDateTime.now());
+        tx.setUpdatedAt(OffsetDateTime.now());
+
+        // ===================== Publish events =====================
+        eventPublisher.publishValidated(tx); // validated before saving
+        tx = transactionRepository.save(tx);  // save transaction
+        eventPublisher.publishPosted(tx);    // posted after saving
+
+        return tx;
+    }
+
+
+    // ===================== Transfer =====================
+    @Transactional
+    public Transaction transfer(Long accountId, String targetIban, BigDecimal amount, String description, Long userId) {
+        Account sourceAccount = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Source account not found"));
+
+        Account targetAccount = accountRepository.findByIban(targetIban)
+                .orElseThrow(() -> new RuntimeException("Target account not found"));
+
+        if (sourceAccount.getBalance().compareTo(amount) < 0) {
+            throw new RuntimeException("Insufficient balance");
+        }
+
+        // ===================== Update balances =====================
+        sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
+        targetAccount.setBalance(targetAccount.getBalance().add(amount));
+        accountRepository.save(sourceAccount);
+        accountRepository.save(targetAccount);
+
+        // ===================== Create transaction =====================
+        Transaction tx = new Transaction();
+        tx.setAccount(sourceAccount);
+        tx.setAmount(amount);
+        tx.setType("TRANSFER");
+        tx.setDirection("OUT");
+        tx.setDescription(description + " | To: " + targetIban);
+        tx.setStatus("POSTED"); // immediately posted for transfers
+        tx.setCreatedBy(userId);
+        tx.setCreatedAt(OffsetDateTime.now());
+        tx.setUpdatedAt(OffsetDateTime.now());
+
+        // ===================== Publish events =====================
+        eventPublisher.publishValidated(tx); // validated before saving
+        tx = transactionRepository.save(tx);  // save transaction
+        eventPublisher.publishPosted(tx);    // posted after saving
+
+        return tx;
+    }
+
+    // ===================== Transaction History =====================
+    public List<Transaction> getTransactionsByAccount(Long accountId) {
+        return transactionRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
+    }
+
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    private void sendTransactionCreatedEvent(Transaction tx) {
+        String message = "Transaction created: ID=" + tx.getId() + ", Amount=" + tx.getAmount();
+        kafkaTemplate.send("transaction.created", message);
+    }
+
+
 }
+
