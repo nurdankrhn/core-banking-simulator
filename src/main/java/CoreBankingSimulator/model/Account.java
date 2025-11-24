@@ -2,6 +2,9 @@ package CoreBankingSimulator.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
@@ -31,6 +34,15 @@ public class Account {
     private Customer customer;
 
     private OffsetDateTime createdAt = OffsetDateTime.now();
+
+    @Getter @Setter
+    private BigDecimal dailyLimit;
+
+    @Getter @Setter
+    private BigDecimal dailyTransferredAmount;
+
+    @Getter @Setter
+    private BigDecimal minBalance;
 
     // Getters / setters
     public Long getId() { return id; }

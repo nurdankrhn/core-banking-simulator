@@ -1,5 +1,6 @@
 package CoreBankingSimulator.util;
 
+import CoreBankingSimulator.exceptions.InvalidIbanException;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
@@ -18,5 +19,13 @@ public class IbanGenerator {
         String bankCode = "10001"; // change to your simulated bank code
         String acctNum = String.format("%016d", Math.abs(rnd.nextLong()) % 1_000_000_000_000_000L);
         return country + checksum + bankCode + String.format("%06d", customerId) + acctNum;
+    }
+
+    // Simple IBAN validation
+    public boolean validateIban(String iban) {
+        if (iban == null || iban.length() != 26 || !iban.startsWith("TR")) {
+            throw new InvalidIbanException("Invalid IBAN format");
+        }
+        return true;
     }
 }

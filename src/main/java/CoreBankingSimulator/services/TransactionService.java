@@ -27,6 +27,29 @@ public class TransactionService {
     @Autowired
     private TransactionEventPublisher eventPublisher;
 
+    private boolean isSuspicious(Account sourceAccount, BigDecimal amount) {
+
+        //Large Amount Rule
+        if (amount.compareTo(new BigDecimal("10000")) > 0) {
+            return true;
+        }
+
+        //Exceeds 90% of daily limit
+        BigDecimal ninetyPercent = sourceAccount.getDailyLimit().multiply(new BigDecimal("0.9"));
+        if (sourceAccount.getDailyTransferredAmount().add(amount).compareTo(ninetyPercent) > 0) {
+            return true;
+        }
+
+        //Minimum balance nearly violated
+        BigDecimal remaining = sourceAccount.getBalance().subtract(amount);
+        if (remaining.compareTo(sourceAccount.getMinBalance().add(new BigDecimal("50"))) < 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+
     // ===================== Deposit =====================
     @Transactional
     public Transaction deposit(Long accountId, BigDecimal amount, String description, Long userId) {
@@ -107,8 +130,16 @@ public class TransactionService {
         Account targetAccount = accountRepository.findByIban(targetIban)
                 .orElseThrow(() -> new RuntimeException("Target account not found"));
 
-        if (sourceAccount.getBalance().compareTo(amount) < 0) {
+        if (sourceAccount.getBalance().compareTo(amount) < 0 ||
+                sourceAccount.getDailyTransferredAmount().compareTo(amount) < 0
+                || sourceAccount.getDailyLimit().compareTo(amount) < 0) {
             throw new RuntimeException("Insufficient balance");
+        }
+
+        boolean suspicious = isSuspicious(sourceAccount, amount);
+
+        if (suspicious) {
+            eventPublisher.publishFraudAlert(sourceAccount, "SUSPICIOUS ACTIVITY DETECTED");
         }
 
         // ===================== Update balances =====================
