@@ -1,5 +1,7 @@
 package CoreBankingSimulator.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -15,7 +17,9 @@ public class Transaction {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id")
+    @JsonIgnore
     private Account account;
+
 
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;

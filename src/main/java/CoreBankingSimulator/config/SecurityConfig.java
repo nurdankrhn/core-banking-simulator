@@ -34,7 +34,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/api/customers/register").permitAll() // login/register
                 .requestMatchers("/api/customers/me").hasAnyAuthority("USER", "ADMIN")
                 .requestMatchers("/api/customers/admin/**").hasAuthority("ADMIN")
-                .anyRequest().authenticated()               // all others require JWT
+                .requestMatchers("/transactions/**").hasAnyAuthority("USER", "ADMIN")
+                .anyRequest().authenticated()// all others require JWT
                 .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // no session
