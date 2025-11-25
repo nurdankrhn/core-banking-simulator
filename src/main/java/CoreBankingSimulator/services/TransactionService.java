@@ -1,16 +1,20 @@
 package CoreBankingSimulator.services;
 
+import CoreBankingSimulator.dto.NotificationEvent;
 import CoreBankingSimulator.model.Account;
 import CoreBankingSimulator.model.Transaction;
 import CoreBankingSimulator.repository.AccountRepository;
 import CoreBankingSimulator.repository.TransactionRepository;
+import CoreBankingSimulator.services.kafka.NotificationEventPublisher;
 import CoreBankingSimulator.services.kafka.TransactionEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jmx.export.notification.NotificationPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +30,9 @@ public class TransactionService {
 
     @Autowired
     private TransactionEventPublisher eventPublisher;
+
+    @Autowired
+    private NotificationEventPublisher notificationPublisher;
 
     private boolean isSuspicious(Account sourceAccount, BigDecimal amount) {
 
@@ -82,6 +89,14 @@ public class TransactionService {
         // Then, transaction posted
         eventPublisher.publishPosted(tx);
 
+        // ======= SUCCESS NOTIFICATION =======
+        notificationPublisher.publishNotification(new NotificationEvent(
+                account.getCustomer().getId(),
+                account.getCustomer().getEmail(),
+                "SUCCESS",
+                "Deposit of " + amount + "₺ completed successfully.",
+                LocalDateTime.now()));
+
         return tx;
     }
 
@@ -93,6 +108,14 @@ public class TransactionService {
                 .orElseThrow(() -> new RuntimeException("Account not found"));
 
         if (account.getBalance().compareTo(amount) < 0) {
+            // ======= FAILED NOTIFICATION =======
+            notificationPublisher.publishNotification(new NotificationEvent(
+                    account.getCustomer().getId(),
+                    account.getCustomer().getEmail(),
+                    "FAILED",
+                    "Withdrawal failed: insufficient balance.",
+                    LocalDateTime.now()
+            ));
             throw new RuntimeException("Insufficient balance");
         }
 
@@ -117,6 +140,15 @@ public class TransactionService {
         tx = transactionRepository.save(tx);  // save transaction
         eventPublisher.publishPosted(tx);    // posted after saving
 
+        // ======= SUCCESS NOTIFICATION =======
+        notificationPublisher.publishNotification(new NotificationEvent(
+                account.getCustomer().getId(),
+                account.getCustomer().getEmail(),
+                "SUCCESS",
+                "Withdrawal of " + amount + "₺ completed successfully.",
+                LocalDateTime.now()
+        ));
+
         return tx;
     }
 
@@ -130,9 +162,18 @@ public class TransactionService {
         Account targetAccount = accountRepository.findByIban(targetIban)
                 .orElseThrow(() -> new RuntimeException("Target account not found"));
 
-        if (sourceAccount.getBalance().compareTo(amount) < 0 ||
-                sourceAccount.getDailyTransferredAmount().compareTo(amount) < 0
+        if (sourceAccount.getBalance().compareTo(amount) < 0
                 || sourceAccount.getDailyLimit().compareTo(amount) < 0) {
+            System.out.println("getDailyLimit: " + sourceAccount.getDailyLimit());
+
+            // ======= FAILED NOTIFICATION =======
+            notificationPublisher.publishNotification(new NotificationEvent(
+                    sourceAccount.getCustomer().getId(),
+                    sourceAccount.getCustomer().getEmail(),
+                    "FAILED",
+                    "Transfer failed: insufficient balance or daily limit exceeded.",
+                    LocalDateTime.now()
+            ));
             throw new RuntimeException("Insufficient balance");
         }
 
@@ -140,6 +181,15 @@ public class TransactionService {
 
         if (suspicious) {
             eventPublisher.publishFraudAlert(sourceAccount, "SUSPICIOUS ACTIVITY DETECTED");
+
+            // ======= FRAUD NOTIFICATION =======
+            notificationPublisher.publishNotification(new NotificationEvent(
+                    sourceAccount.getCustomer().getId(),
+                    sourceAccount.getCustomer().getEmail(),
+                    "FRAUD",
+                    "Suspicious activity detected during your transfer request.",
+                    LocalDateTime.now()
+            ));
         }
 
         // ===================== Update balances =====================
@@ -164,6 +214,15 @@ public class TransactionService {
         eventPublisher.publishValidated(tx); // validated before saving
         tx = transactionRepository.save(tx);  // save transaction
         eventPublisher.publishPosted(tx);    // posted after saving
+
+        // ======= SUCCESS NOTIFICATION =======
+        notificationPublisher.publishNotification(new NotificationEvent(
+                sourceAccount.getCustomer().getId(),
+                sourceAccount.getCustomer().getEmail(),
+                "SUCCESS",
+                "Your transfer of " + amount + "₺ to " + targetIban + " was successful.",
+                LocalDateTime.now()
+        ));
 
         return tx;
     }
