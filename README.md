@@ -142,16 +142,16 @@ src/main/java/CoreBankingSimulator<br>
        │ iban                     │
        │ status                   │
        │ daily_limit              │
-       │ daily_transferred_amount│
-       │ min_balance             │
-       │ customer_id (FK)───────────┘
+       │ daily_transferred_amount │
+       │ min_balance              │
+       │ customer_id (FK)         │
        └───────────┬──────────────┘
 
                    │ 1
                    │
                    │ N
        ┌───────────▼──────────────┐
-       │       transactions        │
+       │       transactions       │
        │──────────────────────────│
        │ id (PK)                  │
        │ amount                   │
@@ -268,7 +268,7 @@ Below is the complete API reference for the Core Banking Simulator.<br>
 
 ## How to Run the Project
 1. Clone
-git clone https://github.com/.../CoreBankingSimulator.git
+git clone https://github.com/.../CoreBankingSimulator.git<br>
 cd CoreBankingSimulator
 
 2. Configure PostgreSQL & docker-compose.yml
